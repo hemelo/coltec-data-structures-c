@@ -226,11 +226,14 @@ erro_t buscaMA_emLargura(grafoMA_t * grafo, vertice_t vertice_source){
         listaES_destroi(lista_vertices_adjacentes);
     }
 
+    // Imprime resultado da busca
     buscaMA_imprimirBuscaLargura(grafo, dados_busca, vertice_source);
 
+    // Libera da memória os dados dinâmicos alocados
     free(dados_busca);
     filaES_destroi(queue);
 
+    // Se chegou ate aqui a busca foi feita corretamente
     return SUCESSO;
 }
 
@@ -250,51 +253,94 @@ static dadoVertice_t * buscaMA_auxEmProfundidade(grafoMA_t * grafo, vertice_t ve
     itemLista_t * adjacente; 
     listaES_t * lista_vertices_adjacentes;
     
+    // Busca os adjacentes ao vértice de busca
     lista_vertices_adjacentes = listaES_criar();
     error = buscaMA_getVerticesAdjacentes(grafo, vertice_source, &lista_vertices_adjacentes);
 
     if(error != SUCESSO)
         return NULL;
 
+    // Seleciona o primeiro adjacente
     adjacente = lista_vertices_adjacentes->primeiro;
 
+    // Enquanto existir vértice adjacente, atualizará os dados sobre eles
     while(adjacente != NULL){
+
+        // Se o vértice nunca foi visitado antes, inicializa os seus novos dados encontrados
         if(dados_busca[adjacente->dados].marca == branco){
+
+            // O predecessor de um adjacente é sua ultima fonte de busca
             dados_busca[adjacente->dados].predecessor = vertice_source;
+
+            // Marca como visitado, mas não buscou vizinhos (outros adjacentes)
             dados_busca[adjacente->dados].marca = cinza;
+
+            // Inicializa o primeiro timestamp (horario de chegada)
             dados_busca[adjacente->dados].timestamps[0] = ++(*posicao);
+
+            // Inicializa qual arvore se encontra o vértice
             dados_busca[adjacente->dados].arvore = arvore;
 
+            // Busca o adjacente do vértice adjacente recursivamente
             dados_busca = buscaMA_auxEmProfundidade(grafo, adjacente->dados, dados_busca, posicao, arvore);
         }
 
+        // Pula pro próximo adjacente do vértice fonte
         adjacente = adjacente->proximo;
     }
     
+    // Marca como visitado e lido todos os adjacentes respectivos do vértice
     dados_busca[vertice_source].marca = preto;
+
+    // Inicializa o segundo timestamp (horario de saida)
     dados_busca[vertice_source].timestamps[1] = ++(*posicao);
 
+    // Libera a lista da memória
     listaES_destroi(lista_vertices_adjacentes);
 
+    // Retorna o vetor de dados dos vertices
     return dados_busca;
 }
 
+/**
+ * @brief Função que faz a busca em largura do grafo, procura e forma apenas um ramo a partir do vertice
+ * 
+ * @param grafo Apontador para o grafo
+ * @param vertice_source Fonte de início para busca
+ * @return erro_t Retorna um erro em caso de ocorrer erro
+ */
 static erro_t buscaMA_profundidadeSimples(grafoMA_t * grafo, vertice_t vertice_source){
     dadoVertice_t * dados_busca;
     uint32_t posicao = 0;
-
+    
     if(vertice_source >= grafo->n_vertices)
         return VERTICE_INVALIDO;
 
+    // Inicializa vetor de dados dos vértices
     dados_busca = buscaMA_inicializaVetorDadosAuxiliares(grafo, emProfundidade);
+
+    // Atualiza os dados do vértice fonte principal
     dados_busca[vertice_source].predecessor = PREDECESSOR_SOURCE;
     dados_busca[vertice_source].marca = cinza;
     dados_busca[vertice_source].arvore = 1;
 
+    // Faz a busca em profundidade recursivamente
     dados_busca = buscaMA_auxEmProfundidade(grafo, vertice_source, dados_busca, &posicao, 1);
+
+    // Imprime resultado da busca
     buscaMA_imprimirBuscaProfundidade(grafo, dados_busca, vertice_source, simples);
+
+    // Se chegou ate aqui a busca foi feita corretamente
+    return SUCESSO;
 }
 
+/**
+ * @brief Função que faz a busca em profundidade procurando todos os ramos do grafo a partir do vertice
+ * 
+ * @param grafo Apontador para o grafo
+ * @param vertice_source Fonte de início para busca
+ * @return erro_t Retorna um erro em caso de ocorrer erro
+ */
 static erro_t buscaMA_profundidadeCompleta(grafoMA_t * grafo, vertice_t vertice_source){
     dadoVertice_t * dados_busca;
     uint32_t i;
@@ -305,22 +351,40 @@ static erro_t buscaMA_profundidadeCompleta(grafoMA_t * grafo, vertice_t vertice_
     if(vertice_source >= grafo->n_vertices)
         return VERTICE_INVALIDO;
 
+    // Inicializa vetor de dados dos vértices
     dados_busca = buscaMA_inicializaVetorDadosAuxiliares(grafo, emProfundidade);
+
+    // Atualiza os dados do vértice fonte principal
     dados_busca[vertice_source].predecessor = PREDECESSOR_SOURCE;
     dados_busca[vertice_source].marca = cinza;
     dados_busca[vertice_source].arvore = 1;
 
+    // Enquanto existir vértice que não possa ser acessado pelo vértice fonte, o programa irá considerar
+    // como outro vértice fonte inserido pelo usuario
+
     do{
+         // Faz a busca em profundidade recursivamente do vertice de busca atual
         dados_busca = buscaMA_auxEmProfundidade(grafo, vertice_busca, dados_busca, &posicao, arvore);
 
+        // Verifica se existe vértice que nao foi acessado
         for(i = 0; i < grafo->n_vertices; i++){
+
             if(dados_busca[i].marca == branco){
+
+                // Se encontrado, é inicializado como outro vértice fonte
                 vertice_busca = i;
+
+                /* Inicializa os dados do novo vértice de busca */
                 dados_busca[vertice_busca].marca = cinza;
-                dados_busca[vertice_busca].arvore = ++arvore;
                 dados_busca[vertice_busca].predecessor = PREDECESSOR_DESCONHECIDO;
+
+                // Inicializa como sendo parte de outro ramo de acesso
+                dados_busca[vertice_busca].arvore = ++arvore;
+
+                // Corrige o timestamp
                 dados_busca[vertice_busca].timestamps[0] = ++posicao;
                 dados_busca[vertice_busca].timestamps[1] = ++posicao;
+
                 break; 
             }else{
                 vertice_busca = VERTICE_INVALIDO;
@@ -328,7 +392,11 @@ static erro_t buscaMA_profundidadeCompleta(grafoMA_t * grafo, vertice_t vertice_
         }
     }while(vertice_busca != VERTICE_INVALIDO);
     
+    // Se chegou ate aqui a busca foi feita corretamente
     buscaMA_imprimirBuscaProfundidade(grafo, dados_busca, vertice_source, completa);
+
+    // Se chegou ate aqui a busca foi feita corretamente
+    return SUCESSO;
 }
 
 /**
@@ -369,5 +437,5 @@ erro_t buscaMA_emProfundidade(grafoMA_t * grafo, vertice_t vertice_source, tipoP
     }
 
     //Executa a busca em profundidade
-    funcao(grafo, vertice_source);
+    return funcao(grafo, vertice_source);
 }
